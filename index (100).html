@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Сделка">
+<meta name="theme-color" content="#FAF9F5">
+<link rel="manifest" href="./manifest.json">
+<title>Альтернативная сделка</title>
+
+<!-- Firebase compat (обкатанная версия) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══ Surf Design System ═══ */
+:root{
+  --bg:#FAF9F5; --surface:#FFFFFF;
+  --t1:#1C1C1E; --t2:#8A8985; --t3:#C4C3BE;
+  --accent:#1A7AE6; --accent-bg:rgba(26,122,230,.06);
+  --success:#2EBD52; --danger:#E8453A; --warn:#E89A0A;
+  --brd:rgba(40,35,20,.08); --brd-strong:rgba(40,35,20,.14);
+  --shadow:0 1px 4px rgba(30,25,10,.04);
+  --shadow-md:0 8px 32px rgba(30,25,10,.12);
+  --ui:'DM Sans',-apple-system,sans-serif;
+  --serif:'Playfair Display',Georgia,serif;
+  --safe-top:env(safe-area-inset-top);
+  --safe-bottom:env(safe-area-inset-bottom);
+  --spring:cubic-bezier(.34,1.56,.64,1);
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+html.dark{
+  --bg:#1A1A1D; --surface:#2C2C2E;
+  --t1:#F0EFEA; --t2:#9A9A9A; --t3:#6A6A6A;
+  --accent:#4A9FF5; --accent-bg:rgba(74,159,245,.1);
+  --brd:rgba(255,255,255,.08); --brd-strong:rgba(255,255,255,.14);
+  --shadow:0 1px 4px rgba(0,0,0,.2);
+  --shadow-md:0 8px 32px rgba(0,0,0,.4);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:var(--ui); background:var(--bg); color:var(--t1);
+  font-size:16px; line-height:1.4; -webkit-font-smoothing:antialiased;
+  min-height:100vh; transition:background .3s,color .3s;
+  -webkit-user-select:none; user-select:none;
+}
+input,textarea{-webkit-user-select:text;user-select:text}
+.app{max-width:900px;margin:0 auto;min-height:100vh}
+::-webkit-scrollbar{display:none}
+
+/* ═══ Header ═══ */
+.header{
+  position:sticky;top:0;z-index:90;
+  background:rgba(250,249,245,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--brd);
+  padding:calc(10px + var(--safe-top)) 18px 8px;
+}
+html.dark .header{background:rgba(26,26,29,.92)}
+.header-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.logo{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.3px;display:flex;align-items:center;gap:8px}
+.header-actions{display:flex;gap:4px;align-items:center}
+.icon-btn{
+  width:36px;height:36px;border:none;background:none;border-radius:50%;
+  color:var(--t1);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s,transform .1s;
+}
+.icon-btn:active{transform:scale(.88);background:var(--brd)}
+.icon-btn svg{width:18px;height:18px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.status{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--t3);transition:background .3s}
+.dot.online{background:var(--success)}
+.dot.sync{background:var(--warn);animation:pulse 1s infinite}
+.dot.off{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* ═══ Tabs ═══ */
+.tabs{display:flex;gap:2px;background:var(--brd);border-radius:8px;padding:2px;margin-top:10px}
+.tab{
+  flex:1;padding:8px 6px;border:none;background:none;border-radius:6px;
+  font-family:var(--ui);font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;
+  transition:all .2s var(--ease);
+}
+.tab.active{background:var(--surface);color:var(--t1);box-shadow:0 1px 3px rgba(30,25,10,.06)}
+
+/* ═══ Content ═══ */
+.content{padding:14px 16px calc(90px + var(--safe-bottom))}
+.view{display:none;animation:fade .25s var(--ease)}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.section-title{
+  font-family:var(--serif);font-size:22px;font-weight:500;letter-spacing:-.3px;
+  margin:6px 2px 4px;
+}
+.section-sub{font-size:13px;color:var(--t2);margin:0 2px 14px}
+
+/* ═══ Candidate card ═══ */
+.cand{
+  background:var(--surface);border-radius:12px;border:1px solid var(--brd);
+  box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden;
+  transition:transform .15s var(--ease);
+}
+.cand-head{padding:13px 14px;display:flex;align-items:flex-start;gap:11px;cursor:pointer}
+.cand-rank{
+  flex-shrink:0;width:30px;height:30px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);font-size:15px;font-weight:600;
+  background:var(--accent-bg);color:var(--accent);
+}
+.cand-rank.gold{background:rgba(232,154,10,.14);color:var(--warn)}
+.cand-main{flex:1;min-width:0}
+.cand-name{font-size:16px;font-weight:600;letter-spacing:-.1px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.cand-tag{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:100px;background:var(--brd);color:var(--t2)}
+.cand-tag.top{background:rgba(46,189,82,.14);color:var(--success)}
+.cand-role{font-size:13px;color:var(--t2);margin-top:2px}
+.cand-score{
+  flex-shrink:0;text-align:right;font-size:11px;color:var(--t2);
+  display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+}
+.cand-score b{font-family:var(--serif);font-size:18px;font-weight:600;color:var(--t1);line-height:1}
+.cand-score.none b{color:var(--t3)}
+.chev{width:16px;height:16px;stroke:var(--t3);stroke-width:2;fill:none;transition:transform .25s var(--ease);flex-shrink:0;margin-top:7px}
+.cand.open .chev{transform:rotate(180deg)}
+
+.cand-body{max-height:0;overflow:hidden;transition:max-height .3s var(--ease)}
+.cand.open .cand-body{max-height:2400px}
+.cand-body-inner{padding:0 14px 14px;border-top:1px solid var(--brd);margin-top:0}
+
+.skill-row{display:flex;gap:8px;font-size:13.5px;padding:7px 0;border-bottom:1px solid var(--brd);align-items:baseline}
+.skill-row:last-child{border-bottom:none}
+.skill-k{flex-shrink:0;width:128px;color:var(--t2);font-size:12px;font-weight:500}
+.skill-v{flex:1;color:var(--t1)}
+.skill-v .muted{color:var(--t3)}
+.verif{display:inline-flex;gap:3px;align-items:center}
+.bar{display:inline-flex;gap:2px}
+.bar i{width:14px;height:5px;border-radius:2px;background:var(--brd)}
+.bar i.on{background:var(--success)}
+.bar i.mid{background:var(--warn)}
+.bar i.lo{background:var(--danger)}
+
+.contact-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.contact-btn{
+  flex:1;min-width:120px;padding:10px;border:1px solid var(--brd-strong);background:var(--surface);
+  border-radius:9px;font-family:var(--ui);font-size:13px;font-weight:600;color:var(--t1);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;
+  transition:all .15s var(--ease);
+}
+.contact-btn:active{transform:scale(.97);background:var(--accent-bg)}
+.contact-btn svg{width:15px;height:15px;stroke:var(--accent);stroke-width:2;fill:none;stroke-linecap:round}
+.contact-btn.eval{background:var(--accent);color:#fff;border-color:var(--accent)}
+.contact-btn.eval svg{stroke:#fff}
+
+/* ═══ Checklist / scoring ═══ */
+.eval-pick{margin-bottom:14px}
+.eval-pick label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--t2);display:block;margin:0 2px 6px}
+.sel-wrap{position:relative}
+.sel{
+  width:100%;padding:11px 13px;border:1.5px solid var(--brd-strong);background:var(--surface);
+  border-radius:10px;font-family:var(--ui);font-size:15px;font-weight:500;color:var(--t1);
+  cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+}
+.sel svg{width:16px;height:16px;stroke:var(--t2);stroke-width:2;fill:none;transition:transform .25s}
+.sel.open svg{transform:rotate(180deg)}
+.sel-list{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;
+  background:var(--surface);border:1px solid var(--brd);border-radius:10px;box-shadow:var(--shadow-md);
+  max-height:0;overflow:hidden;opacity:0;transition:max-height .25s var(--ease),opacity .2s;
+}
+.sel-list.open{max-height:300px;opacity:1;overflow:auto}
+.sel-opt{padding:11px 13px;font-size:14px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--brd)}
+.sel-opt:last-child{border-bottom:none}
+.sel-opt:active{background:var(--accent-bg)}
+
+.block{background:var(--surface);border:1px solid var(--brd);border-radius:12px;box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden}
+.block-head{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.block-title{font-family:var(--serif);font-size:16px;font-weight:600;letter-spacing:-.2px}
+.block-title small{display:block;font-family:var(--ui);font-size:11px;font-weight:400;color:var(--t2);margin-top:1px;letter-spacing:0}
+.block-score{font-family:var(--serif);font-size:15px;font-weight:600;color:var(--t2);flex-shrink:0}
+.block-score.full{color:var(--success)}
+.block.crit .block-title:after{content:'★';color:var(--warn);margin-left:6px;font-size:13px}
+
+.q{padding:11px 14px;border-top:1px solid var(--brd)}
+.q-text{font-size:14px;font-weight:500;line-height:1.35;margin-bottom:3px}
+.q-good{font-size:12px;color:var(--t2);line-height:1.35;margin-bottom:9px}
+.q-good b{color:var(--success);font-weight:600}
+.q-good i{color:var(--danger);font-style:normal;font-weight:600}
+.score-btns{display:flex;gap:6px}
+.sb{
+  flex:1;padding:9px 4px;border:1.5px solid var(--brd);background:var(--surface);
+  border-radius:8px;font-family:var(--ui);font-size:12px;font-weight:600;color:var(--t2);cursor:pointer;
+  transition:all .15s var(--ease);text-align:center;
+}
+.sb:active{transform:scale(.96)}
+.sb.sel0{border-color:var(--danger);background:var(--danger);color:#fff}
+.sb.sel1{border-color:var(--warn);background:var(--warn);color:#fff}
+.sb.sel2{border-color:var(--success);background:var(--success);color:#fff}
+.q-note{
+  width:100%;margin-top:8px;padding:8px 10px;border:1px solid var(--brd);background:var(--bg);
+  border-radius:8px;font-family:var(--ui);font-size:13px;color:var(--t1);resize:none;line-height:1.4;
+}
+.q-note::placeholder{color:var(--t3)}
+.q-note:focus{outline:none;border-color:var(--accent)}
+
+.total-card{
+  background:linear-gradient(135deg,var(--accent-bg),transparent);
+  border:1px solid var(--brd);border-radius:12px;padding:16px;margin-bottom:12px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.total-card .tl{font-size:13px;color:var(--t2);font-weight:500}
+.total-card .tl b{display:block;font-size:15px;color:var(--t1);font-weight:600;margin-top:2px}
+.total-num{font-family:var(--serif);font-size:34px;font-weight:600;line-height:1}
+.total-num small{font-size:16px;color:var(--t2)}
+
+/* ═══ Knowledge / notes ═══ */
+.kb-add{display:flex;gap:8px;margin-bottom:14px}
+.kb-input{flex:1;padding:11px 13px;border:1.5px solid var(--brd-strong);background:var(--surface);border-radius:10px;font-family:var(--ui);font-size:14px;color:var(--t1)}
+.kb-input:focus{outline:none;border-color:var(--accent)}
+.kb-note{background:var(--surface);border:1px solid var(--brd);border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow);position:relative}
+.kb-note .kb-cat{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent);margin-bottom:3px}
+.kb-note .kb-body{font-size:14px;line-height:1.45;white-space:pre-wrap}
+.kb-note .kb-meta{font-size:11px;color:var(--t3);margin-top:6px}
+.kb-del{position:absolute;top:10px;right:10px;width:24px;height:24px;border:none;background:none;color:var(--t3);cursor:pointer;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.kb-del:active{background:var(--danger);color:#fff}
+.kb-del svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
+
+.empty{text-align:center;padding:50px 20px;color:var(--t3)}
+.empty svg{width:42px;height:42px;stroke:var(--t3);stroke-width:1.5;fill:none;margin-bottom:12px}
+.empty p{font-size:14px;line-height:1.5}
+
+/* ═══ Deal stages ═══ */
+.stage{
+  background:var(--surface);border:1px solid var(--brd);border-radius:12px;
+  box-shadow:var(--shadow);margin-bottom:10px;overflow:hidden;
+}
+.stage-head{padding:13px 14px;display:flex;align-items:flex-start;gap:11px;cursor:pointer}
+.stage-check{
+  flex-shrink:0;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--t3);
+  display:flex;align-items:center;justify-content:center;transition:all .2s var(--spring);margin-top:1px;
+}
+.stage-check.done{background:var(--success);border-color:var(--success)}
+.stage-check svg{width:13px;height:13px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round;opacity:0;transform:scale(.5);transition:all .2s var(--spring)}
+.stage-check.done svg{opacity:1;transform:scale(1)}
+.stage-num{font-family:var(--serif);font-size:13px;font-weight:600;color:var(--t3)}
+.stage-check.done .stage-num{display:none}
+.stage-main{flex:1;min-width:0}
+.stage-title{font-size:15px;font-weight:600;letter-spacing:-.1px;line-height:1.3}
+.stage.done .stage-title{color:var(--t2)}
+.stage-when{font-size:11px;color:var(--accent);font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+.stage-chev{width:16px;height:16px;stroke:var(--t3);stroke-width:2;fill:none;transition:transform .25s var(--ease);flex-shrink:0;margin-top:5px}
+.stage.open .stage-chev{transform:rotate(180deg)}
+.stage-body{max-height:0;overflow:hidden;transition:max-height .3s var(--ease)}
+.stage.open .stage-body{max-height:600px}
+.stage-body-inner{padding:0 14px 13px 51px}
+.stage-desc{font-size:13.5px;color:var(--t2);line-height:1.5;padding-top:4px}
+.stage-desc b{color:var(--t1);font-weight:600}
+.stage-watch{font-size:12.5px;color:var(--t1);background:rgba(232,154,10,.1);border-radius:8px;padding:8px 10px;margin-top:9px;line-height:1.45}
+.stage-watch:before{content:'⚠ ';color:var(--warn)}
+
+.deal-progress{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--brd);border-radius:12px;padding:13px 15px;margin-bottom:12px;box-shadow:var(--shadow)}
+.deal-progress .pbar{flex:1;height:7px;background:var(--brd);border-radius:100px;overflow:hidden}
+.deal-progress .pfill{height:100%;background:var(--success);border-radius:100px;transition:width .4s var(--ease)}
+.deal-progress .ptext{font-size:12px;color:var(--t2);font-weight:600;flex-shrink:0}
+
+/* ═══ Listing links ═══ */
+.links-group{margin-top:18px}
+.links-head{display:flex;align-items:center;justify-content:space-between;margin:0 2px 8px}
+.links-head .lh-title{font-family:var(--serif);font-size:17px;font-weight:600;letter-spacing:-.2px}
+.links-head .lh-title small{display:block;font-family:var(--ui);font-size:11px;font-weight:400;color:var(--t2);letter-spacing:0;margin-top:1px}
+.add-link-btn{border:none;background:var(--accent-bg);color:var(--accent);font-family:var(--ui);font-size:13px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.add-link-btn:active{transform:scale(.96)}
+.add-link-btn svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.5;fill:none;stroke-linecap:round}
+.link-card{
+  background:var(--surface);border:1px solid var(--brd);border-radius:11px;padding:11px 13px;margin-bottom:8px;
+  box-shadow:var(--shadow);display:flex;align-items:center;gap:11px;
+}
+.link-card.sell{border-left:3px solid var(--accent)}
+.link-card.buy{border-left:3px solid var(--success)}
+.link-fav{flex-shrink:0;width:30px;height:30px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.link-fav svg{width:15px;height:15px;stroke:var(--t2);stroke-width:2;fill:none}
+.link-main{flex:1;min-width:0}
+.link-title{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link-meta{font-size:12px;color:var(--t2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link-price{font-family:var(--serif);font-size:14px;font-weight:600;color:var(--t1);flex-shrink:0}
+.link-go{flex-shrink:0;width:30px;height:30px;border-radius:8px;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--accent);text-decoration:none}
+.link-go:active{background:var(--accent-bg)}
+.link-go svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none}
+.link-del{flex-shrink:0;width:28px;height:28px;border:none;background:none;color:var(--t3);cursor:pointer;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.link-del:active{background:var(--danger);color:#fff}
+.link-del svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none}
+.links-empty{font-size:13px;color:var(--t3);padding:14px;text-align:center;background:var(--surface);border:1px dashed var(--brd-strong);border-radius:11px}
+
+/* ═══ Timeline ═══ */
+.tl-wrap{position:relative;padding-left:8px}
+.tl-item{position:relative;padding:0 0 4px 34px;margin-bottom:8px}
+.tl-item:before{content:'';position:absolute;left:12px;top:26px;bottom:-12px;width:2px;background:var(--brd)}
+.tl-item:last-child:before{display:none}
+.tl-item.done:before{background:var(--success)}
+.tl-node{
+  position:absolute;left:0;top:2px;width:26px;height:26px;border-radius:50%;
+  border:2px solid var(--t3);background:var(--surface);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .2s var(--spring);z-index:2;
+}
+.tl-node.done{background:var(--success);border-color:var(--success)}
+.tl-node .tl-num{font-family:var(--serif);font-size:12px;font-weight:600;color:var(--t3)}
+.tl-node.done .tl-num{display:none}
+.tl-node svg{width:13px;height:13px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round;opacity:0;transform:scale(.5);transition:all .2s var(--spring)}
+.tl-node.done svg{opacity:1;transform:scale(1)}
+.tl-card{background:var(--surface);border:1px solid var(--brd);border-radius:11px;box-shadow:var(--shadow);overflow:hidden}
+.tl-head{padding:10px 13px;display:flex;align-items:flex-start;gap:8px;cursor:pointer}
+.tl-head-main{flex:1;min-width:0}
+.tl-title{font-size:14.5px;font-weight:600;letter-spacing:-.1px;line-height:1.3}
+.tl-item.done .tl-title{color:var(--t2)}
+.tl-sub{font-size:12px;color:var(--t2);margin-top:2px;line-height:1.35}
+.tl-tag{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:100px;background:var(--brd);color:var(--t2);white-space:nowrap;flex-shrink:0;margin-top:2px}
+.tl-tag.parallel{background:rgba(232,154,10,.14);color:var(--warn)}
+.tl-tag.sale{background:var(--accent-bg);color:var(--accent)}
+.tl-tag.buy{background:rgba(46,189,82,.14);color:var(--success)}
+.tl-tag.deal{background:rgba(168,85,199,.14);color:#A855C7}
+.tl-chev{width:15px;height:15px;stroke:var(--t3);stroke-width:2;fill:none;transition:transform .25s var(--ease);flex-shrink:0;margin-top:4px}
+.tl-item.open .tl-chev{transform:rotate(180deg)}
+.tl-body{max-height:0;overflow:hidden;transition:max-height .3s var(--ease)}
+.tl-item.open .tl-body{max-height:400px}
+.tl-sublist{padding:2px 13px 12px;margin:0}
+.tl-sub-item{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--t1);padding:5px 0;line-height:1.4}
+.tl-sub-check{flex-shrink:0;width:16px;height:16px;border-radius:5px;border:1.5px solid var(--t3);margin-top:1px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s var(--spring)}
+.tl-sub-check.done{background:var(--accent);border-color:var(--accent)}
+.tl-sub-check svg{width:10px;height:10px;stroke:#fff;stroke-width:3;fill:none;opacity:0}
+.tl-sub-check.done svg{opacity:1}
+.tl-sub-item.done span{color:var(--t3);text-decoration:line-through}
+
+/* ═══ FAB ═══ */
+.fab{
+  position:fixed;bottom:calc(16px + var(--safe-bottom));right:18px;z-index:80;
+  width:50px;height:50px;border-radius:50%;border:none;background:var(--accent);color:#fff;
+  box-shadow:0 4px 16px rgba(26,122,230,.34);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:transform .15s var(--spring);
+}
+.fab:active{transform:scale(.88)}
+.fab svg{width:24px;height:24px;stroke:#fff;stroke-width:2.5;fill:none;stroke-linecap:round}
+
+/* ═══ Login ═══ */
+.login{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-box{width:100%;max-width:360px}
+.login-logo{font-family:var(--serif);font-size:30px;font-weight:600;text-align:center;letter-spacing:-.5px;margin-bottom:4px}
+.login-tagline{text-align:center;color:var(--t2);font-size:14px;margin-bottom:26px}
+.login-tabs{display:flex;gap:2px;background:var(--brd);border-radius:9px;padding:2px;margin-bottom:18px}
+.login-tab{flex:1;padding:9px;border:none;background:none;border-radius:7px;font-family:var(--ui);font-size:13px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .2s}
+.login-tab.active{background:var(--surface);color:var(--t1);box-shadow:0 1px 3px rgba(30,25,10,.06)}
+.login-panel{display:none}
+.login-panel.active{display:block;animation:fade .2s}
+.login-field{margin-bottom:12px}
+.login-field label{font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px}
+.login-field input{width:100%;padding:13px;border:1.5px solid var(--brd-strong);background:var(--surface);border-radius:10px;font-family:var(--ui);font-size:16px;color:var(--t1)}
+.login-field input:focus{outline:none;border-color:var(--accent)}
+.login-hint{font-size:12px;color:var(--t3);line-height:1.4;margin-bottom:14px}
+.login-btn{width:100%;padding:14px;border:none;background:var(--accent);color:#fff;border-radius:11px;font-family:var(--ui);font-size:15px;font-weight:600;cursor:pointer;transition:transform .1s}
+.login-btn:active{transform:scale(.98)}
+
+/* ═══ Modal ═══ */
+.overlay{position:fixed;inset:0;background:rgba(20,18,10,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:150;opacity:0;pointer-events:none;transition:opacity .3s}
+.overlay.open{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:0;right:0;bottom:0;z-index:151;max-width:900px;margin:0 auto;
+  background:var(--surface);border-radius:16px 16px 0 0;padding:8px 20px calc(20px + var(--safe-bottom));
+  transform:translateY(100%);transition:transform .35s var(--ease);max-height:88vh;overflow:auto;
+}
+.sheet.open{transform:none}
+.sheet-drag{width:28px;height:3px;background:var(--t3);opacity:.4;border-radius:100px;margin:6px auto 14px}
+.sheet h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
+.sheet-field{margin-bottom:12px}
+.sheet-field label{font-size:12px;font-weight:600;color:var(--t2);display:block;margin-bottom:6px}
+.sheet-field input,.sheet-field textarea,.sheet-field select{width:100%;padding:11px;border:1.5px solid var(--brd-strong);background:var(--bg);border-radius:9px;font-family:var(--ui);font-size:15px;color:var(--t1)}
+.sheet-field textarea{resize:vertical;min-height:80px;line-height:1.4}
+.sheet-field input:focus,.sheet-field textarea:focus,.sheet-field select:focus{outline:none;border-color:var(--accent)}
+.sheet-actions{display:flex;gap:8px;margin-top:6px}
+.sheet-actions button{flex:1;padding:13px;border:none;border-radius:10px;font-family:var(--ui);font-size:15px;font-weight:600;cursor:pointer}
+.btn-save{background:var(--accent);color:#fff}
+.btn-cancel{background:var(--brd);color:var(--t1)}
+
+/* ═══ Toast ═══ */
+.toast{
+  position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(14px);
+  background:var(--t1);color:var(--bg);font-size:12px;font-weight:500;padding:9px 16px;border-radius:100px;
+  box-shadow:0 8px 20px rgba(30,25,10,.18);z-index:300;opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s var(--ease);white-space:nowrap;max-width:90vw;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.menu-list{display:flex;flex-direction:column;gap:2px}
+.menu-item{padding:13px;border:none;background:none;border-radius:9px;font-family:var(--ui);font-size:15px;color:var(--t1);text-align:left;cursor:pointer;display:flex;align-items:center;gap:11px;width:100%}
+.menu-item:active{background:var(--accent-bg)}
+.menu-item svg{width:18px;height:18px;stroke:var(--t2);stroke-width:2;fill:none;stroke-linecap:round}
+.menu-item.danger{color:var(--danger)}
+.menu-item.danger svg{stroke:var(--danger)}
+.menu-sep{height:1px;background:var(--brd);margin:6px 0}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="login" id="login">
+  <div class="login-box">
+    <div class="login-logo">Альтернативная сделка</div>
+    <div class="login-tagline">Мурино → Комендантский · продажа со встречной покупкой</div>
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchLoginTab('personal')">Личный</button>
+      <button class="login-tab" onclick="switchLoginTab('shared')">Вдвоём</button>
+    </div>
+    <div class="login-panel active" id="lp-personal">
+      <div class="login-field">
+        <label>Ваше имя</label>
+        <input type="text" id="personalName" placeholder="Пу" autocomplete="off">
+      </div>
+      <div class="login-hint">Данные синхронизируются между вашими устройствами через облако.</div>
+      <button class="login-btn" onclick="loginPersonal()">Начать</button>
+    </div>
+    <div class="login-panel" id="lp-shared">
+      <div class="login-field">
+        <label>Ваше имя</label>
+        <input type="text" id="sharedName" placeholder="ваше имя" autocomplete="off">
+      </div>
+      <div class="login-field">
+        <label>Код комнаты</label>
+        <input type="text" id="roomCodeInput" placeholder="один на двоих, напр. dom7x2" autocomplete="off">
+      </div>
+      <div class="login-hint">Введите одинаковый код на обоих устройствах — будете видеть общий список и оценки. Пустое поле создаст новый код.</div>
+      <button class="login-btn" onclick="loginShared()">Войти / Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div class="app" id="app" style="display:none">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">Сделка</div>
+      <div class="header-actions">
+        <div class="status"><span class="dot" id="dot"></span><span id="statusText">…</span></div>
+        <button class="icon-btn" onclick="toggleTheme()" title="Тема">
+          <svg id="themeIcon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+        </button>
+        <button class="icon-btn" onclick="openMenu()" title="Меню">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div class="content" id="viewsRoot"></div>
+</div>
+
+<button class="fab" id="fab" style="display:none" onclick="onFab()">
+  <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- Sheet -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"><div class="sheet-drag"></div><div id="sheetInner"></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// 1. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ (все в начале — урок Firebase инструкции)
+// ═══════════════════════════════════════════════════════════════
+let fbDb=null, fbAuth=null, fbUser=null, fbEnabled=false, fbSyncInProgress=false, fbUnsubscribe=null;
+let appMode=null, userName='', roomCode='', userId='', storagePrefix='';
+let _saveDebounceTimer=null, _lastSyncTimestamp=0;
+let currentView='deal', evalCandId=null;
+
+const APP_NAME='realtor-choice';
+
+const FB_CONFIG={
+  apiKey:"AIzaSyAgIA0PLvUOJsRN8tHRzC03evTTkt3KHHc",
+  authDomain:"skills-tracker-3f21b.firebaseapp.com",
+  projectId:"skills-tracker-3f21b",
+  storageBucket:"skills-tracker-3f21b.firebasestorage.app",
+  messagingSenderId:"108202530564",
+  appId:"1:108202530564:web:31ecf70071f49a89abe251"
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 2. ДАННЫЕ ПО УМОЛЧАНИЮ (сидируются при первом запуске)
+//    Структура расширяемая: candidates / scores / knowledge / meta
+// ═══════════════════════════════════════════════════════════════
+const SEED_CANDIDATES=[
+  {
+    id:'lebedeva', rank:'1', top:true,
+    name:'Лидия Лебедева', role:'ИП · агентство «Линия Лебедевой»',
+    tag:'фаворит',
+    skills:{
+      'Опыт / стаж':'5 лет 3 мес. на Домклик, 8 сделок за 12 мес., 17 активных объявлений',
+      'Альтернативные цепочки':'Подтверждено: цепочка из 4 квартир (ипотеки, опека, межгород, сжатые сроки), отзыв апр. 2026',
+      'Проверка покупки':'Входит в тариф — проверка собственников + подготовка ДКП',
+      'Комиссия':'3% (публично, средняя по рынку). На суммы ~270–390 тыс ₽ — уточнить, от чего считает',
+      'Расчёты':'Уточнить (ячейка/аккредитив, деньги мимо счёта риелтора)',
+      'Лично / делегирует':'Руководитель агентства — уточнить',
+    },
+    verif:'high',
+    plus:'Единственная с доказанным портфолио по 4-звенной цепочке + прозрачная цена',
+    risk:'Проверить схему расчётов и привязку к Приморскому (Блоки 2–3)',
+    contacts:[{t:'Профиль Домклик',u:'https://agencies.domclick.ru/agent/16376113'}]
+  },
+  {
+    id:'spichenok', rank:'2', top:true,
+    name:'Татьяна Спиченок', role:'АН «Квартиры Петербурга»',
+    tag:'сильный 2-й',
+    skills:{
+      'Опыт / стаж':'18 лет стажа, офис на Торфяной дороге',
+      'Альтернативные цепочки':'Подтверждено: встречные покупки + цепочки из 3 сделок с опекой и ипотекой',
+      'Проверка покупки':'Заявлена агентством (юр. сопровождение, проверка чистоты)',
+      'Комиссия':'Публично не указана — спросить первым вопросом',
+      'Расчёты':'Уточнить',
+      'Лично / делегирует':'Агент в штате АН',
+    },
+    verif:'mid',
+    plus:'Содержательно ближе всех к встречной схеме, большой стаж, в зоне Комендантского',
+    risk:'Отзывы на Zoon (не Домклик), цена непрозрачна',
+    contacts:[{t:'Профиль Zoon',u:'https://zoon.ru/spb/p-other/tatyana_evgenevna_spichenok/'}]
+  },
+  {
+    id:'murashkina', rank:'3', top:false,
+    name:'Христина Мурашкина', role:'Самозанятая',
+    tag:'на дозвон',
+    skills:{
+      'Опыт / стаж':'4 года 11 мес. на Домклик, 517 оценок, 17 отзывов',
+      'Альтернативные цепочки':'Заявлено («сложные сделки спокойно»), не верифицировано про цепочки',
+      'Проверка покупки':'Заявлена',
+      'Комиссия':'Не указана — спросить',
+      'Расчёты':'Уточнить',
+      'Лично / делегирует':'ВАЖНО уточнить — большой объём при 17 отзывах',
+    },
+    verif:'mid',
+    plus:'Самый большой массив оценок',
+    risk:'Делегирование; мало текста именно про альтернативу',
+    contacts:[{t:'Профиль Домклик',u:'https://agencies.domclick.ru/agent/4318893'}]
+  },
+  {
+    id:'chalanov', rank:'4', top:false,
+    name:'Олег Чаланов', role:'ИП',
+    tag:'резерв',
+    skills:{
+      'Опыт / стаж':'5 лет 6 мес. на Домклик, 510 оценок, всего 4 отзыва',
+      'Альтернативные цепочки':'Не подтверждено',
+      'Проверка покупки':'Заявлена (стандартная формулировка)',
+      'Комиссия':'Не указана — спросить',
+      'Расчёты':'Уточнить',
+      'Лично / делегирует':'Уточнить',
+    },
+    verif:'low',
+    plus:'Долго на платформе',
+    risk:'Разрыв 510 оценок / 4 отзыва; нет следов альтернативы',
+    contacts:[{t:'Профиль Домклик',u:'https://agencies.domclick.ru/agent/14742591'}]
+  }
+];
+
+// Чек-лист (5 блоков). crit — критичные (★)
+const CHECKLIST=[
+  {id:'b1', title:'Опыт в альтернативе', crit:false, qs:[
+    {id:'b1q1', t:'Сколько альтернативных сделок за последний год?', good:'<b>Конкретные числа и примеры, отличает альтернативу от обычной продажи.</b> <i>Тревожно: «это то же самое».</i>'},
+    {id:'b1q2', t:'Самая длинная цепочка и чем закончилась?', good:'<b>Спокойно про 3–4 звена и как разруливал срывы.</b>'},
+    {id:'b1q3', t:'Работаете в Приморском / у Комендантского? Какие объекты?', good:'<b>Знает дома, ЖК, цены по району на память.</b>'},
+  ]},
+  {id:'b2', title:'Как устроена покупка', crit:true, sub:'дыра в договоре Мазура', qs:[
+    {id:'b2q1', t:'Что входит в подбор? Сколько вариантов, по каким критериям?', good:'<b>Критерии под бюджет/район, конкретный процесс.</b> <i>Тревожно: «найдём что-нибудь».</i>'},
+    {id:'b2q2', t:'Кто проверяет чистоту ПОКУПАЕМОЙ квартиры и продавца?', good:'<b>ЕГРН, история переходов, банкротство/дееспособность, согласия супругов, прописанные, обременения. Юрист в команде.</b>'},
+    {id:'b2q3', t:'Ответственность за скрытые проблемы? Как прописано?', good:'<b>Готов прописать ответственность или титульное страхование.</b> <i>Тревожно: «это ваши риски».</i>'},
+  ]},
+  {id:'b3', title:'Деньги и расчёты', crit:true, sub:'дыра в договоре Мазура', qs:[
+    {id:'b3q1', t:'Расчёты — ячейка / аккредитив / эскроу? Деньги через ваш счёт?', good:'<b>Ячейка / аккредитив, деньги НЕ через счёт риелтора.</b> <i>Тревожно: «переведём мне на ответственное хранение».</i>'},
+    {id:'b3q2', t:'От чего считается комиссия? Зафиксируете в рублях?', good:'<b>Фиксированная понятная сумма.</b> <i>Тревожно: размытые проценты «от всего».</i>'},
+    {id:'b3q3', t:'Когда и при каком условии получаете оплату?', good:'<b>После регистрации права на новую квартиру.</b>'},
+  ]},
+  {id:'b4', title:'Сроки, эксклюзив, выход', crit:false, qs:[
+    {id:'b4q1', t:'Срок договора, автопродление? Как выйти?', good:'<b>Разумный срок, выход по уведомлению без штрафов.</b>'},
+    {id:'b4q2', t:'Это эксклюзив? Могу смотреть сам?', good:'<b>Объясняет логику без давления.</b>'},
+    {id:'b4q3', t:'Что плачу авансом, возвращается при расторжении?', good:'<b>Минимум авансов, прозрачно.</b>'},
+  ]},
+  {id:'b5', title:'Человеческое', crit:false, qs:[
+    {id:'b5q1', t:'Кто ведёт сделку — вы лично или помощник?', good:'<b>Лично или прозрачно про команду.</b>'},
+    {id:'b5q2', t:'Как часто и как отчитываетесь о ходе?', good:'<b>Конкретный формат и частота.</b>'},
+    {id:'b5q3', t:'Дайте 1–2 контакта клиентов по похожим сделкам.', good:'<b>Даёт без заминки.</b>'},
+  ]},
+];
+
+// Сценарий альтернативной сделки — этапы
+const DEAL_STAGES=[
+  {id:'s1', title:'Оценка и подготовка своей квартиры', when:'старт',
+   desc:'Определяем реальную цену студии в Мурино (28,4 м², в собственности с 2017 — <b>налога при продаже нет</b>). Собираем документы: ЕГРН, техпаспорт, согласие супруга при необходимости. Делаем фото, выставляем объявление.',
+   watch:'Цена продажи задаёт весь бюджет покупки. Завысишь — встанет, занизишь — не хватит на встречную.'},
+  {id:'s2', title:'Параллельный мониторинг вариантов покупки', when:'старт',
+   desc:'Одновременно с продажей смотрим вторичку у Комендантского. Не новостройка, не апартаменты. Копим шорт-лист ссылок (вкладка ниже), чтобы к моменту выхода покупателя было из чего выбирать.',
+   watch:'Не выходи на сделку по продаже, пока нет 2–3 реальных вариантов покупки — иначе окажешься с деньгами и без жилья в срок.'},
+  {id:'s3', title:'Поиск покупателя на свою квартиру', when:'после показов',
+   desc:'Принимаем аванс/задаток от покупателя Мурино. Фиксируем сроки. С этого момента запускается «цепочка»: ты одновременно продавец и покупатель.',
+   watch:'Размер задатка и сроки в предварительном договоре должны совпадать со сроками по покупаемой квартире.'},
+  {id:'s4', title:'Выбор покупаемой квартиры и аванс', when:'параллельно с s3',
+   desc:'Из шорт-листа выбираем финальный вариант, вносим аванс продавцу. Риелтор запускает <b>проверку юридической чистоты</b>: история переходов, дееспособность и банкротство продавца, согласия супругов, прописанные/выписанные, обременения.',
+   watch:'Это Блок 2 чек-листа. Проверку покупаемой делает риелтор — убедись, что ответственность прописана в договоре.'},
+  {id:'s5', title:'Согласование цепочки и расчётов', when:'до сделки',
+   desc:'Сводим сроки всех звеньев в один день. Деньги покупателя Мурино + твоя доплата идут <b>напрямую конечному продавцу через ячейку или аккредитив</b>, минуя счёт риелтора.',
+   watch:'Это Блок 3 чек-листа. Деньги НЕ должны идти через счёт риелтора («ответственное хранение» — красный флаг).'},
+  {id:'s6', title:'Подписание и одновременная регистрация', when:'день сделки',
+   desc:'Оба ДКП (продажа Мурино + покупка у Комендантского) подписываются и сдаются на регистрацию синхронно. Закладка денег в ячейки/аккредитивы до подписания.',
+   watch:'Все участники должны быть собраны в один день. Выпадение звена тормозит всю цепочку.'},
+  {id:'s7', title:'Регистрация, расчёты, передача ключей', when:'финал',
+   desc:'Росреестр регистрирует переходы прав. После регистрации продавцы получают деньги из ячеек / раскрывается аккредитив. Подписываем акты, получаем ключи. <b>Комиссия риелтора — после регистрации права на новую квартиру.</b>',
+   watch:'Проверь выписки ЕГРН на оба объекта до раскрытия денег и до выезда из Мурино.'},
+];
+
+// Таймлайн без дат — последовательность шагов как чек-лист прогресса
+const TIMELINE=[
+  {id:'t1', title:'Найти риелтора', tag:'подготовка',
+   sub:'Профильного по альтернативным цепочкам',
+   items:['Обзвонить шорт-лист (Лебедева, Спиченок и др.)','Прогнать по чек-листу собеседования (вкладка «Оценка»)','Сравнить по Блокам 2–3: проверка покупки и расчёты','Выбрать одного, у кого ответы готов прописать в договоре']},
+  {id:'t2', title:'Заключить договор с риелтором', tag:'подготовка',
+   sub:'Зафиксировать ответственность и деньги на бумаге',
+   items:['Прописать проверку чистоты ПОКУПАЕМОЙ квартиры','Зафиксировать схему расчётов: ячейка/аккредитив, мимо счёта риелтора','Комиссия — сумма в рублях и от чего считается','Оплата — после регистрации права на новую квартиру','Срок договора и условия выхода без штрафов']},
+  {id:'t3', title:'Оценка и подготовка своей квартиры', tag:'параллельно',
+   sub:'Студия Мурино, в собственности с 2017 — налога нет',
+   items:['Определить реальную цену продажи','Собрать документы: ЕГРН, техпаспорт, согласие супруга','Профессиональные фото','Предпродажная уборка / мелкий ремонт по необходимости']},
+  {id:'t4', title:'Объявление: поиск покупателей', tag:'продажа',
+   sub:'Выставляем Мурино на площадки',
+   items:['Разместить на Авито / Циан / Домклик','Добавить ссылку в приложение (экран «Сделка» → продажа)','Отслеживать отклики и звонки','Корректировать цену по динамике просмотров']},
+  {id:'t5', title:'Поиск вариантов на покупку', tag:'параллельно ← важно',
+   sub:'Стартует ОДНОВРЕМЕННО с продажей, не позже',
+   items:['Мониторить вторичку у Комендантского (не новостройка, не апартаменты)','Копить шорт-лист ссылок в приложении (экран «Сделка» → покупка)','Съездить на 3–5 просмотров, отсеять','Держать наготове 2–3 реальных варианта к моменту покупателя']},
+  {id:'t6', title:'Показы своей квартиры', tag:'продажа',
+   sub:'Работа с входящим потоком',
+   items:['Проводить показы / делегировать риелтору','Собирать обратную связь по цене','Отсеивать несерьёзных, выделять готовых']},
+  {id:'t7', title:'Определение покупателя', tag:'продажа',
+   sub:'Запуск цепочки',
+   items:['Принять аванс / задаток, подписать предварительный договор','Согласовать сроки — состыковать с покупкой','Проверить, что покупатель готов ждать альтернативу']},
+  {id:'t8', title:'Выбор покупаемой квартиры и аванс', tag:'покупка',
+   sub:'Финальный вариант из шорт-листа',
+   items:['Выбрать объект, внести аванс продавцу','Запустить проверку: ЕГРН, история, банкротство/дееспособность','Согласия супругов, прописанные, обременения','Зафиксировать ответственность риелтора за чистоту']},
+  {id:'t9', title:'Согласование цепочки и расчётов', tag:'сделка',
+   sub:'Свести все звенья в один день',
+   items:['Состыковать сроки всех участников','Деньги покупателя + доплата → конечному продавцу','Через ячейку / аккредитив, мимо счёта риелтора','Заложить деньги до подписания']},
+  {id:'t10', title:'Продажа своего + покупка нового', tag:'сделка',
+   sub:'Одновременная регистрация',
+   items:['Подписать оба ДКП синхронно','Сдать на регистрацию в один день','Дождаться регистрации переходов в Росреестре','Проверить выписки ЕГРН на оба объекта']},
+  {id:'t11', title:'Расчёты и передача ключей', tag:'финал',
+   sub:'Завершение сделки',
+   items:['Раскрытие денег из ячеек / аккредитива после регистрации','Подписать акты приёма-передачи','Получить ключи от новой квартиры','Освободить Мурино, передать ключи покупателю','Оплата комиссии риелтору']},
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  РЕЕСТР МОДУЛЕЙ — «разъём» для расширения
+//  Чтобы добавить новый экран, добавь сюда один объект:
+//    {
+//      id:'myid',                  // уникальный, без пробелов
+//      tab:'Моя вкладка',          // подпись вкладки
+//      title:'Заголовок экрана',   // крупный заголовок
+//      sub:'подзаголовок',         // строка под заголовком (необязательно)
+//      data:{ myField:[] },        // поля в appData по умолчанию (для ensureShape)
+//      render(){ ... },            // рисует в свой контейнер #view-<id> (innerHTML)
+//      fab(){ ... }                // действие кнопки + на этом экране (необязательно)
+//    }
+//  Контейнер, вкладка, переключение, вызов render() и форма данных
+//  подключаются автоматически. Больше нигде править не нужно.
+// ═══════════════════════════════════════════════════════════════
+const MODULES=[
+  {
+    id:'deal', tab:'Сделка',
+    title:'Альтернативная сделка',
+    sub:'Продаём в Мурино и одновременно покупаем у Комендантского. Деньги с продажи + доплата → покупка, регистрация в один день',
+    data:{ dealProgress:{}, listings:[] },
+    render(){ renderDealBody(); },
+    fab(){ openLinkSheet('buy'); }
+  },
+  {
+    id:'timeline', tab:'Шаги',
+    title:'Таймлайн сделки',
+    sub:'Последовательность шагов от поиска риелтора до ключей. Отмечайте выполненное',
+    data:{ timelineProgress:{} },
+    render(){ renderTimeline(); },
+    fab(){ Toast.show('Отмечайте шаги галочками по ходу'); }
+  },
+  {
+    id:'cands', tab:'Риелторы',
+    title:'Риелторы',
+    sub:'Проверены по актуальным данным · приоритет — релевантность задаче',
+    data:{ candidates:[], scores:{}, notes:{} },
+    render(){ renderCands(); },
+    fab(){ editCand(null); }
+  },
+  {
+    id:'eval', tab:'Оценка',
+    title:'Чек-лист собеседования',
+    sub:'Оценивайте 0–2 по каждому вопросу. ★ — блоки, где договор Мазура был пустым',
+    data:{},
+    render(){ renderEvalSelector(); renderEval(); },
+    fab(){ if(!evalCandId){switchView('cands');Toast.show('Сначала выберите риелтора');} }
+  },
+  {
+    id:'kb', tab:'База',
+    title:'База знаний',
+    sub:'Заметки, факты, договорённости — то, на что опираемся в решении',
+    data:{ knowledge:[] },
+    render(){ renderKb(); },
+    fab(){ openKbSheet(); }
+  },
+];
+function getModule(id){ return MODULES.find(m=>m.id===id); }
+
+let appData={
+  candidates:[],
+  scores:{},      // { candId: { qId: 0|1|2 }, ... }
+  notes:{},       // { candId: { qId: "текст" }, ... }
+  knowledge:[],   // [{id, cat, body, by, ts}]
+  dealProgress:{},// { stageId: true }
+  listings:[],    // [{id, kind:'sell'|'buy', title, price, meta, url, ts}]
+  settings:{seeded:false},
+  meta:{}
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 3. УТИЛИТЫ
+// ═══════════════════════════════════════════════════════════════
+function simpleHash(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h&=h}return Math.abs(h).toString(36)}
+function generateRoomCode(){const c='abcdefghjkmnpqrstuvwxyz23456789';let r='';for(let i=0;i<6;i++)r+=c[Math.floor(Math.random()*c.length)];return r}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function esc(s){return(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+const Toast={el:document.getElementById('toast'),t:null,show(m,d=2200){this.el.textContent=m;this.el.classList.add('show');clearTimeout(this.t);this.t=setTimeout(()=>this.el.classList.remove('show'),d)}};
+
+// ═══════════════════════════════════════════════════════════════
+// 4. FIREBASE (инфраструктура из обкатанного шаблона)
+// ═══════════════════════════════════════════════════════════════
+function initFirebase(){
+  try{
+    firebase.initializeApp(FB_CONFIG);
+    fbDb=firebase.firestore(); fbAuth=firebase.auth();
+    fbAuth.signInAnonymously()
+      .then(r=>{fbUser=r.user;fbEnabled=true;updateStatus('online','Облако');console.log('✅ Firebase OK');loadFromFirebase().then(()=>startRealtimeSync());})
+      .catch(e=>{console.error('❌ auth',e);fbEnabled=false;updateStatus('off','Офлайн')});
+  }catch(e){console.error('❌ init',e);fbEnabled=false;updateStatus('off','Офлайн')}
+}
+function getDocRef(){
+  return appMode==='shared'
+    ? fbDb.collection('apps').doc(APP_NAME).collection('rooms').doc(roomCode)
+    : fbDb.collection('apps').doc(APP_NAME).collection('users').doc(userId);
+}
+function fieldHasData(v){
+  if(Array.isArray(v))return v.length>0;
+  if(v&&typeof v==='object')return Object.keys(v).length>0;
+  return !!v;
+}
+function hasRealData(){
+  // базовые поля
+  if(fieldHasData(appData.candidates)||fieldHasData(appData.scores)||fieldHasData(appData.knowledge))return true;
+  // поля, объявленные модулями (новые модули защищаются автоматически)
+  for(const m of MODULES){
+    if(!m.data)continue;
+    for(const k of Object.keys(m.data)){
+      if(fieldHasData(appData[k]))return true;
+    }
+  }
+  return false;
+}
+async function saveToFirebase(){
+  if(!fbEnabled||fbSyncInProgress)return;
+  if(!hasRealData()){console.warn('⚠️ пустые данные — не сохраняю');return;}
+  fbSyncInProgress=true; updateStatus('sync','Сохранение…');
+  try{
+    const payload={data:JSON.stringify(appData),lastSync:firebase.firestore.FieldValue.serverTimestamp(),updatedBy:userName,appVersion:'1.0',mode:appMode};
+    if(appMode==='shared')payload.users=firebase.firestore.FieldValue.arrayUnion(userName);
+    await getDocRef().set(payload,{merge:true});
+    _lastSyncTimestamp=Date.now();
+    updateStatus('online','Сохранено');
+  }catch(e){console.error('❌ save',e);updateStatus('off','Ошибка');Toast.show('Ошибка: '+(e.code||e.message))}
+  finally{fbSyncInProgress=false}
+}
+async function loadFromFirebase(){
+  if(window._fbLoadRunning)return; window._fbLoadRunning=true;
+  if(!fbEnabled||fbSyncInProgress){window._fbLoadRunning=false;return;}
+  fbSyncInProgress=true; updateStatus('sync','Загрузка…');
+  try{
+    const doc=await getDocRef().get();
+    if(doc.exists&&doc.data().data){
+      appData=JSON.parse(doc.data().data);
+      ensureShape(); saveToLocal(); renderAll();
+      updateStatus('online','Загружено');
+    }else{
+      loadFromLocal(); seedIfEmpty(); renderAll();
+      updateStatus('online','Новое хранилище');
+      if(hasRealData())saveToFirebase(); // первый сид заливаем
+    }
+  }catch(e){console.error('❌ load',e);loadFromLocal();seedIfEmpty();renderAll();updateStatus('off','Офлайн');Toast.show('Офлайн: работаю локально')}
+  finally{fbSyncInProgress=false;window._fbLoadRunning=false}
+}
+function startRealtimeSync(){
+  if(!fbEnabled)return;
+  if(fbUnsubscribe)fbUnsubscribe();
+  fbUnsubscribe=getDocRef().onSnapshot(doc=>{
+    if(!doc.exists||fbSyncInProgress)return;
+    const rd=doc.data();
+    const ts=rd.lastSync?.toMillis?.()||0;
+    if(ts&&ts===_lastSyncTimestamp)return;
+    try{
+      appData=JSON.parse(rd.data);ensureShape();saveToLocal();renderAll();
+      if(rd.updatedBy&&rd.updatedBy!==userName)Toast.show('📥 '+rd.updatedBy+' обновил(а) данные');
+    }catch(e){console.error('realtime parse',e)}
+  },e=>console.error('realtime',e));
+}
+function saveToLocal(){
+  localStorage.setItem(storagePrefix+'data',JSON.stringify(appData));
+  localStorage.setItem(storagePrefix+'user',userName);
+  localStorage.setItem(storagePrefix+'mode',appMode);
+  if(roomCode)localStorage.setItem(storagePrefix+'room',roomCode);
+}
+function loadFromLocal(){const s=localStorage.getItem(storagePrefix+'data');if(s){try{appData=JSON.parse(s);ensureShape()}catch(e){}}}
+function saveAll(){
+  saveToLocal();
+  if(_saveDebounceTimer)clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer=setTimeout(()=>{if(fbEnabled)saveToFirebase()},2000);
+}
+
+// гарантируем форму данных при загрузке старых версий
+function ensureShape(){
+  // базовые поля
+  if(!appData.candidates)appData.candidates=[];
+  if(!appData.scores)appData.scores={};
+  if(!appData.notes)appData.notes={};
+  if(!appData.settings)appData.settings={};
+  if(!appData.meta)appData.meta={};
+  // поля, объявленные модулями (новые модули подхватятся сами)
+  MODULES.forEach(m=>{
+    if(!m.data)return;
+    Object.keys(m.data).forEach(k=>{
+      if(appData[k]===undefined){
+        const def=m.data[k];
+        appData[k]=Array.isArray(def)?[]:(typeof def==='object'&&def!==null?{}:def);
+      }
+    });
+  });
+}
+function seedIfEmpty(){
+  ensureShape();
+  if(!appData.candidates.length&&!appData.settings.seeded){
+    appData.candidates=JSON.parse(JSON.stringify(SEED_CANDIDATES));
+    appData.settings.seeded=true;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 5. ВХОД
+// ═══════════════════════════════════════════════════════════════
+function switchLoginTab(t){
+  document.querySelectorAll('.login-tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.login-panel').forEach(x=>x.classList.remove('active'));
+  document.querySelector(`[onclick="switchLoginTab('${t}')"]`).classList.add('active');
+  document.getElementById('lp-'+t).classList.add('active');
+}
+function loginPersonal(){
+  const n=document.getElementById('personalName').value.trim();
+  if(!n){alert('Введите имя');return;}
+  appMode='personal'; userName=n; roomCode=''; userId='u_'+simpleHash(n.toLowerCase());
+  startApp();
+}
+function loginShared(){
+  const n=document.getElementById('sharedName').value.trim();
+  if(!n){alert('Введите имя');return;}
+  const c=document.getElementById('roomCodeInput').value.trim().toLowerCase();
+  appMode='shared'; userName=n; roomCode=c||generateRoomCode(); userId='r_'+roomCode;
+  startApp();
+  if(!c)setTimeout(()=>Toast.show('Код комнаты: '+roomCode+' — передайте второму устройству',5000),600);
+}
+function tryAutoLogin(){
+  // ищем последний вход в любом из storagePrefix
+  for(const m of ['personal','shared']){
+    const u=localStorage.getItem(`${APP_NAME}_${m}_user`);
+    if(u){
+      appMode=m; userName=u;
+      if(m==='shared'){roomCode=localStorage.getItem(`${APP_NAME}_shared_room`)||'';userId='r_'+roomCode;}
+      else{userId='u_'+simpleHash(u.toLowerCase());}
+      // storagePrefix зависит от режима — выставим и стартуем
+      startApp(true);
+      return true;
+    }
+  }
+  return false;
+}
+function startApp(isAuto){
+  storagePrefix=`${APP_NAME}_${appMode}_`;
+  if(appMode==='shared'&&!userId)userId='r_'+roomCode;
+  if(appMode==='personal'&&!userId)userId='u_'+simpleHash(userName.toLowerCase());
+  localStorage.setItem(storagePrefix+'user',userName);
+  localStorage.setItem(storagePrefix+'mode',appMode);
+  if(roomCode)localStorage.setItem(storagePrefix+'room',roomCode);
+
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('fab').style.display='flex';
+
+  mountModules();
+  loadFromLocal(); seedIfEmpty(); renderAll();
+  initFirebase();
+  console.log(`🚀 ${APP_NAME} | ${appMode} | ${userName} | ${userId}`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 6. РЕНДЕР
+// ═══════════════════════════════════════════════════════════════
+// Монтаж каркаса из реестра модулей (вкладки + контейнеры view).
+// Вызывается один раз при старте. Тело каждого экрана живёт в #view-<id>-body.
+function mountModules(){
+  const tabs=document.getElementById('tabs');
+  const root=document.getElementById('viewsRoot');
+  tabs.innerHTML=MODULES.map(m=>
+    `<button class="tab ${m.id===currentView?'active':''}" data-view="${m.id}" onclick="switchView('${m.id}')">${esc(m.tab)}</button>`
+  ).join('');
+  root.innerHTML=MODULES.map(m=>
+    `<div class="view ${m.id===currentView?'active':''}" id="view-${m.id}">
+       <div class="section-title">${esc(m.title)}</div>
+       ${m.sub?`<div class="section-sub">${esc(m.sub)}</div>`:''}
+       <div id="view-${m.id}-body"></div>
+     </div>`
+  ).join('');
+}
+
+function renderAll(){
+  MODULES.forEach(m=>{ try{ m.render(); }catch(e){ console.error('render '+m.id,e); } });
+}
+
+function candScore(cid){
+  const s=appData.scores[cid]; if(!s)return null;
+  let sum=0,answered=0;
+  CHECKLIST.forEach(b=>b.qs.forEach(q=>{if(typeof s[q.id]==='number'){sum+=s[q.id];answered++}}));
+  return answered?{sum,answered,max:CHECKLIST.reduce((a,b)=>a+b.qs.length*2,0)}:null;
+}
+
+// ─── Таймлайн ───
+let openTlId=null;
+function tlProg(){ if(!appData.timelineProgress)appData.timelineProgress={}; return appData.timelineProgress; }
+function renderTimeline(){
+  const box=document.getElementById('view-timeline-body');
+  if(!box)return;
+  const p=tlProg();
+  const done=TIMELINE.filter(s=>p[s.id]).length;
+  const total=TIMELINE.length;
+  const pct=Math.round(done/total*100);
+  const tagClass=t=>t.includes('параллельно')?'parallel':t==='продажа'?'sale':t==='покупка'?'buy':t==='сделка'?'deal':'';
+  let html=`<div class="deal-progress">
+    <div class="ptext">Шаг ${done}/${total}</div>
+    <div class="pbar"><div class="pfill" style="width:${pct}%"></div></div>
+    <div class="ptext">${pct}%</div>
+  </div><div class="tl-wrap">`;
+  html+=TIMELINE.map((s,i)=>{
+    const isDone=!!p[s.id];
+    const isOpen=openTlId===s.id;
+    const items=(s.items||[]).map((it,idx)=>{
+      const k=s.id+':'+idx;
+      const id=!!p[k];
+      return `<div class="tl-sub-item ${id?'done':''}">
+        <div class="tl-sub-check ${id?'done':''}" onclick="toggleTlItem('${s.id}',${idx})"><svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg></div>
+        <span>${esc(it)}</span>
+      </div>`;
+    }).join('');
+    return `<div class="tl-item ${isDone?'done':''} ${isOpen?'open':''}">
+      <div class="tl-node ${isDone?'done':''}" onclick="toggleTlDone('${s.id}')">
+        <span class="tl-num">${i+1}</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+      </div>
+      <div class="tl-card">
+        <div class="tl-head" onclick="toggleTl('${s.id}')">
+          <div class="tl-head-main">
+            <div class="tl-title">${esc(s.title)}</div>
+            ${s.sub?`<div class="tl-sub">${esc(s.sub)}</div>`:''}
+          </div>
+          ${s.tag?`<div class="tl-tag ${tagClass(s.tag)}">${esc(s.tag)}</div>`:''}
+          <svg class="tl-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        ${items?`<div class="tl-body"><div class="tl-sublist">${items}</div></div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  html+=`</div>`;
+  box.innerHTML=html;
+}
+function toggleTl(id){openTlId=openTlId===id?null:id;renderTimeline();}
+function toggleTlDone(id){
+  const p=tlProg();
+  if(p[id])delete p[id]; else p[id]=true;
+  saveAll();renderTimeline();
+}
+function toggleTlItem(stepId,idx){
+  const p=tlProg();const k=stepId+':'+idx;
+  if(p[k])delete p[k]; else p[k]=true;
+  // если все подпункты отмечены — отметить шаг
+  const step=TIMELINE.find(s=>s.id===stepId);
+  if(step&&step.items){
+    const all=step.items.every((_,i)=>p[stepId+':'+i]);
+    if(all)p[stepId]=true; else if(p[stepId]&&!all)delete p[stepId];
+  }
+  saveAll();renderTimeline();
+}
+
+let openStageId=null;
+function renderDealBody(){
+  const box=document.getElementById('view-deal-body');
+  if(!box)return;
+  const done=Object.keys(appData.dealProgress||{}).filter(k=>appData.dealProgress[k]).length;
+  const total=DEAL_STAGES.length;
+  const pct=Math.round(done/total*100);
+  let html=`<div class="deal-progress">
+    <div class="ptext">Этап ${done}/${total}</div>
+    <div class="pbar"><div class="pfill" style="width:${pct}%"></div></div>
+    <div class="ptext">${pct}%</div>
+  </div>`;
+  html+=DEAL_STAGES.map((s,i)=>{
+    const isDone=!!appData.dealProgress[s.id];
+    const isOpen=openStageId===s.id;
+    return `<div class="stage ${isDone?'done':''} ${isOpen?'open':''}">
+      <div class="stage-head" onclick="toggleStage('${s.id}')">
+        <div class="stage-check ${isDone?'done':''}" onclick="event.stopPropagation();toggleStageDone('${s.id}')">
+          <span class="stage-num">${i+1}</span>
+          <svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+        </div>
+        <div class="stage-main">
+          <div class="stage-title">${esc(s.title)}</div>
+          <div class="stage-when">${esc(s.when)}</div>
+        </div>
+        <svg class="stage-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="stage-body"><div class="stage-body-inner">
+        <div class="stage-desc">${s.desc}</div>
+        ${s.watch?`<div class="stage-watch">${esc(s.watch)}</div>`:''}
+      </div></div>
+    </div>`;
+  }).join('');
+
+  // Блоки ссылок
+  html+=renderLinksGroup('sell','Наша квартира (продажа)','Мурино · Воронцовский б-р, 8 · ~28,4 м²');
+  html+=renderLinksGroup('buy','Варианты на покупку','Вторичка у Комендантского · шорт-лист');
+  box.innerHTML=html;
+}
+function renderLinksGroup(kind,title,sub){
+  const items=(appData.listings||[]).filter(l=>l.kind===kind).sort((a,b)=>b.ts-a.ts);
+  const favSvg=kind==='sell'
+    ? '<svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>'
+    : '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>';
+  let h=`<div class="links-group">
+    <div class="links-head">
+      <div class="lh-title">${esc(title)}<small>${esc(sub)}</small></div>
+      <button class="add-link-btn" onclick="openLinkSheet('${kind}')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Ссылка</button>
+    </div>`;
+  if(!items.length){
+    h+=`<div class="links-empty">Пока пусто — добавь ссылку на ${kind==='sell'?'объявление о продаже':'подходящий вариант'}</div>`;
+  }else{
+    h+=items.map(l=>`<div class="link-card ${kind}">
+      <div class="link-fav">${favSvg}</div>
+      <div class="link-main">
+        <div class="link-title">${esc(l.title||'Без названия')}</div>
+        <div class="link-meta">${esc(l.meta||l.url||'')}</div>
+      </div>
+      ${l.price?`<div class="link-price">${esc(l.price)}</div>`:''}
+      ${l.url?`<a class="link-go" href="${esc(l.url)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg></a>`:''}
+      <button class="link-del" onclick="delLink('${l.id}')"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></button>
+    </div>`).join('');
+  }
+  h+=`</div>`;
+  return h;
+}
+function toggleStage(id){openStageId=openStageId===id?null:id;renderDealBody();}
+function toggleStageDone(id){
+  if(!appData.dealProgress)appData.dealProgress={};
+  if(appData.dealProgress[id])delete appData.dealProgress[id];
+  else appData.dealProgress[id]=true;
+  saveAll();renderDealBody();
+}
+function openLinkSheet(kind){
+  openSheet(`
+    <h2>${kind==='sell'?'Ссылка на нашу квартиру':'Вариант на покупку'}</h2>
+    <div class="sheet-field"><label>Название / краткое описание</label><input id="l_title" placeholder="${kind==='sell'?'Студия Мурино, Воронцовский 8':'2-к у Комендантского, 58 м²'}"></div>
+    <div class="sheet-field"><label>Ссылка (Авито / Циан / Домклик)</label><input id="l_url" placeholder="https://…"></div>
+    <div class="sheet-field" style="display:flex;gap:8px">
+      <div style="flex:1"><label>Цена</label><input id="l_price" placeholder="напр. 11,5 млн"></div>
+      <div style="flex:1.4"><label>Заметка</label><input id="l_meta" placeholder="метро, этаж, состояние"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="closeSheet()">Отмена</button>
+      <button class="btn-save" onclick="saveLink('${kind}')">Добавить</button>
+    </div>
+  `);
+}
+function saveLink(kind){
+  const title=document.getElementById('l_title').value.trim();
+  let url=document.getElementById('l_url').value.trim();
+  if(!title&&!url){alert('Заполните название или ссылку');return;}
+  if(url&&!/^https?:\/\//i.test(url))url='https://'+url;
+  appData.listings.push({id:uid(),kind,title,url,price:document.getElementById('l_price').value.trim(),meta:document.getElementById('l_meta').value.trim(),by:userName,ts:Date.now()});
+  saveAll();closeSheet();renderDealBody();Toast.show('Ссылка добавлена');
+}
+function delLink(id){
+  appData.listings=appData.listings.filter(l=>l.id!==id);
+  saveAll();renderDealBody();Toast.show('Удалено');
+}
+
+function renderCands(){
+  const list=document.getElementById('view-cands-body');
+  if(!list)return;
+  const cs=appData.candidates;
+  if(!cs.length){list.innerHTML=emptyState('Нет кандидатов','Добавьте первого через +');return;}
+  list.innerHTML=cs.map(c=>{
+    const sc=candScore(c.id);
+    const vbar=verifBar(c.verif);
+    const skillsHtml=Object.entries(c.skills||{}).map(([k,v])=>
+      `<div class="skill-row"><div class="skill-k">${esc(k)}</div><div class="skill-v">${esc(v)}</div></div>`).join('');
+    const contactsHtml=(c.contacts||[]).map(ct=>
+      `<a class="contact-btn" href="${esc(ct.u)}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>${esc(ct.t)}</a>`).join('');
+    return `<div class="cand ${c.id===openCandId?'open':''}" data-id="${c.id}">
+      <div class="cand-head" onclick="toggleCand('${c.id}')">
+        <div class="cand-rank ${c.top?'gold':''}">${esc(c.rank||'•')}</div>
+        <div class="cand-main">
+          <div class="cand-name">${esc(c.name)} ${c.tag?`<span class="cand-tag ${c.top?'top':''}">${esc(c.tag)}</span>`:''}</div>
+          <div class="cand-role">${esc(c.role||'')}</div>
+        </div>
+        <div class="cand-score ${sc?'':'none'}">
+          <b>${sc?sc.sum:'—'}</b><span>${sc?'из '+sc.max:'не оценён'}</span>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="cand-body"><div class="cand-body-inner">
+        ${skillsHtml}
+        <div class="skill-row"><div class="skill-k">Верификация</div><div class="skill-v">${vbar}</div></div>
+        ${c.plus?`<div class="skill-row"><div class="skill-k">Плюс</div><div class="skill-v">${esc(c.plus)}</div></div>`:''}
+        ${c.risk?`<div class="skill-row"><div class="skill-k">Проверить</div><div class="skill-v">${esc(c.risk)}</div></div>`:''}
+        <div class="contact-row">
+          ${contactsHtml}
+          <button class="contact-btn eval" onclick="event.stopPropagation();gotoEval('${c.id}')"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Оценить</button>
+          <button class="contact-btn" onclick="event.stopPropagation();editCand('${c.id}')"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Изменить</button>
+        </div>
+      </div></div>
+    </div>`;
+  }).join('');
+}
+let openCandId=null;
+function toggleCand(id){openCandId=openCandId===id?null:id;renderCands();}
+
+function verifBar(v){
+  const map={high:['on','on','on','Высокая'],mid:['mid','mid','','Средняя'],low:['lo','','','Низкая']};
+  const m=map[v]||map.mid;
+  return `<span class="verif"><span class="bar"><i class="${m[0]}"></i><i class="${m[1]}"></i><i class="${m[2]}"></i></span> ${m[3]}</span>`;
+}
+
+// ─── Оценка ───
+// Каркас экрана оценки (селектор + контейнер) строится здесь, в теле модуля
+function renderEvalSelector(){
+  const body=document.getElementById('view-eval-body');
+  if(!body)return;
+  if(!body.querySelector('#evalSel')){
+    body.innerHTML=`
+      <div class="eval-pick">
+        <label>Оцениваю риелтора</label>
+        <div class="sel-wrap">
+          <div class="sel" id="evalSel" onclick="toggleEvalSel()"><span id="evalSelText">Выберите…</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+          <div class="sel-list" id="evalSelList"></div>
+        </div>
+      </div>
+      <div id="evalContent"></div>`;
+  }
+  const list=document.getElementById('evalSelList');
+  list.innerHTML=appData.candidates.map(c=>{
+    const sc=candScore(c.id);
+    return `<div class="sel-opt" onclick="pickEval('${c.id}')">${esc(c.name)} ${sc?`<span style="color:var(--t3);font-size:12px">· ${sc.sum}/${sc.max}</span>`:''}</div>`;
+  }).join('')||'<div class="sel-opt" style="color:var(--t3)">Сначала добавьте риелтора</div>';
+  if(evalCandId){const c=appData.candidates.find(x=>x.id===evalCandId);document.getElementById('evalSelText').textContent=c?c.name:'Выберите…';}
+}
+function toggleEvalSel(){document.getElementById('evalSel').classList.toggle('open');document.getElementById('evalSelList').classList.toggle('open');}
+function pickEval(id){evalCandId=id;document.getElementById('evalSel').classList.remove('open');document.getElementById('evalSelList').classList.remove('open');renderEvalSelector();renderEval();}
+function gotoEval(id){evalCandId=id;switchView('eval');renderEvalSelector();renderEval();}
+
+function renderEval(){
+  const box=document.getElementById('evalContent');
+  if(!box)return;
+  if(!evalCandId){box.innerHTML=emptyState('Выберите риелтора','Оценки сохраняются и синхронизируются');return;}
+  const s=appData.scores[evalCandId]||{};
+  const n=appData.notes[evalCandId]||{};
+  let total=0,maxTotal=0,answered=0;
+  let html='';
+  CHECKLIST.forEach(b=>{
+    let bSum=0,bMax=b.qs.length*2,bAns=0;
+    const qsHtml=b.qs.map(q=>{
+      const val=s[q.id];
+      if(typeof val==='number'){bSum+=val;bAns++;}
+      const btns=[0,1,2].map(v=>`<button class="sb ${val===v?'sel'+v:''}" onclick="setScore('${q.id}',${v})">${v}</button>`).join('');
+      return `<div class="q">
+        <div class="q-text">${esc(q.t)}</div>
+        <div class="q-good">${q.good}</div>
+        <div class="score-btns">${btns}</div>
+        <textarea class="q-note" rows="1" placeholder="Заметка по ответу…" oninput="setNote('${q.id}',this.value)" onfocus="this.rows=3">${esc(n[q.id]||'')}</textarea>
+      </div>`;
+    }).join('');
+    total+=bSum;maxTotal+=bMax;answered+=bAns;
+    html+=`<div class="block ${b.crit?'crit':''}">
+      <div class="block-head">
+        <div class="block-title">${esc(b.title)}${b.sub?`<small>${esc(b.sub)}</small>`:''}</div>
+        <div class="block-score ${bSum===bMax&&bAns===b.qs.length?'full':''}">${bSum}/${bMax}</div>
+      </div>${qsHtml}</div>`;
+  });
+  const c=appData.candidates.find(x=>x.id===evalCandId);
+  const topHtml=`<div class="total-card">
+    <div class="tl">Итог${answered<15?` · отвечено ${answered}/15`:''}<b>${esc(c?c.name:'')}</b></div>
+    <div class="total-num">${total}<small>/${maxTotal}</small></div>
+  </div>`;
+  box.innerHTML=topHtml+html;
+}
+function setScore(qId,v){
+  if(!appData.scores[evalCandId])appData.scores[evalCandId]={};
+  if(appData.scores[evalCandId][qId]===v)delete appData.scores[evalCandId][qId];
+  else appData.scores[evalCandId][qId]=v;
+  saveAll();renderEval();renderEvalSelector();renderCands();
+}
+let _noteTimer=null;
+function setNote(qId,v){
+  if(!appData.notes[evalCandId])appData.notes[evalCandId]={};
+  appData.notes[evalCandId][qId]=v;
+  if(_noteTimer)clearTimeout(_noteTimer);
+  _noteTimer=setTimeout(saveAll,600);
+}
+
+// ─── База знаний ───
+function renderKb(){
+  const body=document.getElementById('view-kb-body');
+  if(!body)return;
+  if(!body.querySelector('#kbInput')){
+    body.innerHTML=`
+      <div class="kb-add">
+        <input class="kb-input" id="kbInput" placeholder="Быстрая заметка…" onkeydown="if(event.key==='Enter')addKbQuick()">
+        <button class="contact-btn eval" style="flex:0;min-width:auto;padding:11px 16px" onclick="addKbQuick()">+</button>
+      </div>
+      <div id="kbList"></div>`;
+  }
+  const list=document.getElementById('kbList');
+  const ks=(appData.knowledge||[]).slice().sort((a,b)=>b.ts-a.ts);
+  if(!ks.length){list.innerHTML=emptyState('Пока пусто','Добавляйте факты и договорённости, на которые опираемся');return;}
+  list.innerHTML=ks.map(k=>`<div class="kb-note">
+    ${k.cat?`<div class="kb-cat">${esc(k.cat)}</div>`:''}
+    <div class="kb-body">${esc(k.body)}</div>
+    <div class="kb-meta">${esc(k.by||'')} · ${new Date(k.ts).toLocaleDateString('ru-RU',{day:'numeric',month:'short'})}</div>
+    <button class="kb-del" onclick="delKb('${k.id}')"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></button>
+  </div>`).join('');
+}
+function addKbQuick(){
+  const inp=document.getElementById('kbInput');
+  const v=inp.value.trim(); if(!v)return;
+  appData.knowledge.push({id:uid(),cat:'',body:v,by:userName,ts:Date.now()});
+  inp.value='';saveAll();renderKb();Toast.show('Заметка добавлена');
+}
+function delKb(id){
+  appData.knowledge=appData.knowledge.filter(k=>k.id!==id);
+  saveAll();renderKb();Toast.show('Удалено');
+}
+
+function emptyState(t,s){return `<div class="empty"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><p><b>${esc(t)}</b><br>${esc(s)}</p></div>`}
+
+// ═══════════════════════════════════════════════════════════════
+// 7. НАВИГАЦИЯ
+// ═══════════════════════════════════════════════════════════════
+function switchView(v){
+  if(!getModule(v))return;
+  currentView=v;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.view===v));
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='view-'+v));
+}
+function onFab(){
+  const m=getModule(currentView);
+  if(m&&typeof m.fab==='function')m.fab();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 8. SHEET — редактирование кандидата / знания
+// ═══════════════════════════════════════════════════════════════
+function openSheet(html){document.getElementById('sheetInner').innerHTML=html;document.getElementById('overlay').classList.add('open');document.getElementById('sheet').classList.add('open');}
+function closeSheet(){document.getElementById('overlay').classList.remove('open');document.getElementById('sheet').classList.remove('open');}
+
+function editCand(id){
+  const c=id?appData.candidates.find(x=>x.id===id):null;
+  const skillsText=c?Object.entries(c.skills||{}).map(([k,v])=>`${k}: ${v}`).join('\n'):'';
+  const contactsText=c?(c.contacts||[]).map(ct=>`${ct.t} | ${ct.u}`).join('\n'):'';
+  openSheet(`
+    <h2>${c?'Изменить кандидата':'Новый кандидат'}</h2>
+    <div class="sheet-field"><label>Имя</label><input id="f_name" value="${esc(c?.name||'')}"></div>
+    <div class="sheet-field"><label>Статус / роль</label><input id="f_role" value="${esc(c?.role||'')}"></div>
+    <div class="sheet-field" style="display:flex;gap:8px">
+      <div style="flex:0 0 70px"><label>Ранг</label><input id="f_rank" value="${esc(c?.rank||'')}"></div>
+      <div style="flex:1"><label>Метка</label><input id="f_tag" value="${esc(c?.tag||'')}" placeholder="фаворит / резерв"></div>
+    </div>
+    <div class="sheet-field"><label>Верификация отзывов</label>
+      <select id="f_verif"><option value="high"${c?.verif==='high'?' selected':''}>Высокая</option><option value="mid"${(!c||c?.verif==='mid')?' selected':''}>Средняя</option><option value="low"${c?.verif==='low'?' selected':''}>Низкая</option></select>
+    </div>
+    <div class="sheet-field"><label>Навыки / факты (строка = «Ключ: значение»)</label><textarea id="f_skills" rows="6">${esc(skillsText)}</textarea></div>
+    <div class="sheet-field"><label>Плюс</label><input id="f_plus" value="${esc(c?.plus||'')}"></div>
+    <div class="sheet-field"><label>Что проверить</label><input id="f_risk" value="${esc(c?.risk||'')}"></div>
+    <div class="sheet-field"><label>Контакты (строка = «Название | ссылка»)</label><textarea id="f_contacts" rows="2">${esc(contactsText)}</textarea></div>
+    <div class="sheet-actions">
+      ${c?`<button class="btn-cancel" style="flex:0 0 46px;color:var(--danger)" onclick="delCand('${c.id}')">✕</button>`:''}
+      <button class="btn-cancel" onclick="closeSheet()">Отмена</button>
+      <button class="btn-save" onclick="saveCand('${id||''}')">Сохранить</button>
+    </div>
+  `);
+}
+function parseSkills(t){const o={};t.split('\n').forEach(l=>{const i=l.indexOf(':');if(i>0){const k=l.slice(0,i).trim();const v=l.slice(i+1).trim();if(k&&v)o[k]=v;}});return o;}
+function parseContacts(t){const a=[];t.split('\n').forEach(l=>{const p=l.split('|');if(p[0]&&p[1])a.push({t:p[0].trim(),u:p[1].trim()})});return a;}
+function saveCand(id){
+  const name=document.getElementById('f_name').value.trim();
+  if(!name){alert('Имя обязательно');return;}
+  const obj={
+    name,role:document.getElementById('f_role').value.trim(),
+    rank:document.getElementById('f_rank').value.trim(),tag:document.getElementById('f_tag').value.trim(),
+    verif:document.getElementById('f_verif').value,
+    skills:parseSkills(document.getElementById('f_skills').value),
+    plus:document.getElementById('f_plus').value.trim(),risk:document.getElementById('f_risk').value.trim(),
+    contacts:parseContacts(document.getElementById('f_contacts').value),
+  };
+  if(id){const c=appData.candidates.find(x=>x.id===id);Object.assign(c,obj);}
+  else{obj.id=uid();obj.top=false;appData.candidates.push(obj);}
+  saveAll();closeSheet();renderAll();Toast.show('Сохранено');
+}
+function delCand(id){
+  if(!confirm('Удалить кандидата и его оценки?'))return;
+  appData.candidates=appData.candidates.filter(x=>x.id!==id);
+  delete appData.scores[id];delete appData.notes[id];
+  if(evalCandId===id)evalCandId=null;
+  saveAll();closeSheet();renderAll();Toast.show('Удалён');
+}
+
+function openKbSheet(){
+  openSheet(`
+    <h2>Новая заметка в базу</h2>
+    <div class="sheet-field"><label>Категория (необязательно)</label><input id="k_cat" placeholder="расчёты / налог / договор…"></div>
+    <div class="sheet-field"><label>Текст</label><textarea id="k_body" rows="4" placeholder="Факт, договорённость, на что опираемся…"></textarea></div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" onclick="closeSheet()">Отмена</button>
+      <button class="btn-save" onclick="saveKbFull()">Сохранить</button>
+    </div>
+  `);
+}
+function saveKbFull(){
+  const body=document.getElementById('k_body').value.trim();
+  if(!body){alert('Введите текст');return;}
+  appData.knowledge.push({id:uid(),cat:document.getElementById('k_cat').value.trim(),body,by:userName,ts:Date.now()});
+  saveAll();closeSheet();renderKb();switchView('kb');Toast.show('Добавлено в базу');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 9. МЕНЮ
+// ═══════════════════════════════════════════════════════════════
+function openMenu(){
+  openSheet(`
+    <h2>Меню</h2>
+    <div class="menu-list">
+      <button class="menu-item" onclick="closeSheet();manualSync()"><svg viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.8-3.4L23 10M1 14l4.7 4.4A9 9 0 0 0 20.5 15"/></svg>Отправить в облако</button>
+      <button class="menu-item" onclick="closeSheet();forceLoad()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Загрузить из облака</button>
+      <button class="menu-item" onclick="closeSheet();fbStatus()"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Статус синхронизации</button>
+      <div class="menu-sep"></div>
+      <button class="menu-item" onclick="closeSheet();exportJSON()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5M12 5v12"/></svg>Экспорт в файл</button>
+      <button class="menu-item" onclick="closeSheet();document.getElementById('importFile').click()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Импорт из файла</button>
+      <div class="menu-sep"></div>
+      <button class="menu-item danger" onclick="closeSheet();doLogout()"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>Выйти</button>
+    </div>
+  `);
+}
+function manualSync(){if(!fbEnabled){Toast.show('Облако недоступно');return;}saveToFirebase();Toast.show('Отправлено в облако');}
+async function forceLoad(){
+  if(!fbEnabled){Toast.show('Облако недоступно');return;}
+  updateStatus('sync','Загрузка…');
+  try{
+    const doc=await getDocRef().get();
+    if(doc.exists&&doc.data().data){appData=JSON.parse(doc.data().data);ensureShape();saveToLocal();renderAll();Toast.show('Загружено из облака');updateStatus('online','Загружено');}
+    else{Toast.show('В облаке пусто');updateStatus('online','Облако')}
+  }catch(e){Toast.show('Ошибка: '+(e.code||e.message));updateStatus('off','Ошибка')}
+}
+function fbStatus(){
+  alert(['Синхронизация: '+(fbEnabled?'✅ подключено':'❌ офлайн'),'Режим: '+(appMode==='shared'?'вдвоём (комната '+roomCode+')':'личный'),'Имя: '+userName,'ID: '+userId].join('\n'));
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify({app:APP_NAME,exportedBy:userName,date:new Date().toISOString(),data:appData},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`sdelka-${new Date().toISOString().slice(0,10)}.json`;a.click();
+  Toast.show('Файл сохранён');
+}
+function importJSON(ev){
+  const f=ev.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{try{const o=JSON.parse(e.target.result);appData=o.data||o;ensureShape();saveAll();renderAll();Toast.show('Импортировано');}catch(err){Toast.show('Ошибка файла')}};
+  r.readAsText(f);ev.target.value='';
+}
+function doLogout(){
+  if(!confirm('Выйти? Данные останутся в облаке.'))return;
+  if(fbUnsubscribe)fbUnsubscribe();
+  ['personal','shared'].forEach(m=>{localStorage.removeItem(`${APP_NAME}_${m}_user`);localStorage.removeItem(`${APP_NAME}_${m}_mode`);localStorage.removeItem(`${APP_NAME}_${m}_room`);});
+  location.reload();
+}
+
+function updateStatus(state,text){
+  const d=document.getElementById('dot');
+  d.className='dot '+(state==='online'?'online':state==='sync'?'sync':state==='off'?'off':'');
+  document.getElementById('statusText').textContent=text;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 10. ТЕМА + SW + СТАРТ
+// ═══════════════════════════════════════════════════════════════
+function toggleTheme(){
+  const dark=document.documentElement.classList.toggle('dark');
+  localStorage.setItem(APP_NAME+'_theme',dark?'dark':'light');
+  document.querySelector('meta[name=theme-color]').content=dark?'#1A1A1D':'#FAF9F5';
+}
+(function initTheme(){if(localStorage.getItem(APP_NAME+'_theme')==='dark'){document.documentElement.classList.add('dark');document.querySelector('meta[name=theme-color]').content='#1A1A1D';}})();
+
+// закрытие селектора по клику вне
+document.addEventListener('click',e=>{
+  const sw=document.querySelector('.sel-wrap');
+  if(sw&&!sw.contains(e.target)){document.getElementById('evalSel')?.classList.remove('open');document.getElementById('evalSelList')?.classList.remove('open');}
+});
+
+// hidden file input
+const imp=document.createElement('input');imp.type='file';imp.id='importFile';imp.accept='.json';imp.style.display='none';imp.onchange=importJSON;document.body.appendChild(imp);
+
+// SW
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+
+// автологин
+if(!tryAutoLogin()){
+  document.getElementById('login').style.display='flex';
+  // восстановим имя в поле
+  const lastP=localStorage.getItem(`${APP_NAME}_personal_user`);
+  if(lastP)document.getElementById('personalName').value=lastP;
+}
+</script>
+</body>
+</html>

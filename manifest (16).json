@@ -1,0 +1,16 @@
+{
+  "name": "Альтернативная сделка",
+  "short_name": "Сделка",
+  "description": "Сценарий альтернативной сделки, риелторы, чек-лист собеседования и ссылки на квартиры",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAF9F5",
+  "theme_color": "#FAF9F5",
+  "orientation": "portrait",
+  "lang": "ru",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
